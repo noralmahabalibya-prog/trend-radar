@@ -1,0 +1,42 @@
+name: Trend Radar
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # كل 30 دقيقة
+  workflow_dispatch:          # تشغيل يدوي من GitHub
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trend-radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Run radar
+        run: python trend_radar.py
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+
+      - name: Save state
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "radar-bot@users.noreply.github.com"
+          git add radar_state.json
+          git diff --cached --quiet && exit 0
+          git commit -m "update radar state"
+          git pull --rebase
+          git push
